@@ -78,7 +78,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
 
         # reflect
         #xr = c .+ α * (c .- xh)
-        for j in 1:n
+        @inbounds for j in 1:n
             xr[j] = c[j] + α * (c[j] - xh[j])
         end
         fr = f(xr)
@@ -87,7 +87,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         if fr < fl # <= fs
             # expand
             #xe = c .+ β * (xr .- c)
-            for j in 1:n
+            @inbounds for j in 1:n
                 xe[j] = c[j] + β * (xr[j] - c[j])
             end
             fe = f(xe)
@@ -103,7 +103,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             if fr < fh
                 # outside
                 #xc = c .+ γ * (xr .- c)
-                for j in 1:n
+                @inbounds for j in 1:n
                     xc[j] = c[j] + γ * (xr[j] - c[j])
                 end
                 fc = f(xc)
@@ -115,7 +115,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             else
                 # inside
                 #xc = c .- γ * (xr .- c)
-                for j in 1:n
+                @inbounds for j in 1:n
                     xc[j] = c[j] - γ * (xr[j] - c[j])
                 end
                 fc = f(xc)
@@ -144,10 +144,13 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             ord = sortperm(fvalues)
         else
             x, fvalue = accept
-            simplex[h][:] = x[:]
+            #simplex[h][:] = x[:]
+            @inbounds for j in 1:n
+                simplex[h][j] = x[j]
+            end
             fvalues[h] = fvalue
             # insert new value into an ordered position
-            for i in n+1:-1:2
+            @inbounds for i in n+1:-1:2
                 if fvalues[ord[i-1]] > fvalues[ord[i]]
                     ord[i-1], ord[i] = ord[i], ord[i-1]
                 else
@@ -162,14 +165,14 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
 
         # check convergence
         fvalconv = true
-        for i in 2:n+1
+        @inbounds for i in 2:n+1
             if abs(fvalues[i] - fl) > ftol
                 fvalconv = false
                 break
             end
         end
         domconv = true
-        for i in 2:n+1
+        @inbounds for i in 2:n+1
             # compute the infinity norm
             norm = -Inf
             for j in 1:n
