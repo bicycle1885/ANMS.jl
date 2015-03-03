@@ -40,7 +40,11 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     fvalconv = false  # function-value convergence
 
     # centroid
-    c = Array(Float64, n)
+    c = similar(x₀)
+    # transformed points
+    xr = similar(x₀)
+    xe = similar(x₀)
+    xc = similar(x₀)
 
     while !(iter >= iteration || (fvalconv && domconv))
         # DEBUG
@@ -72,16 +76,20 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         xl = simplex[l]
         fl = fvalues[l]
 
-        # TODO: preallocate vectors for efficiency
-
         # reflect
-        xr = c .+ α * (c .- xh)
+        #xr = c .+ α * (c .- xh)
+        for j in 1:n
+            xr[j] = c[j] + α * (c[j] - xh[j])
+        end
         fr = f(xr)
         doshrink = false
 
         if fr < fl # <= fs
             # expand
-            xe = c .+ β * (xr .- c)
+            #xe = c .+ β * (xr .- c)
+            for j in 1:n
+                xe[j] = c[j] + β * (xr[j] - c[j])
+            end
             fe = f(xe)
             if fe < fr
                 accept = (xe, fe)
@@ -94,7 +102,10 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             # contract
             if fr < fh
                 # outside
-                xc = c .+ γ * (xr .- c)
+                #xc = c .+ γ * (xr .- c)
+                for j in 1:n
+                    xc[j] = c[j] + γ * (xr[j] - c[j])
+                end
                 fc = f(xc)
                 if fc <= fr
                     accept = (xc, fc)
@@ -103,7 +114,10 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
                 end
             else
                 # inside
-                xc = c .- γ * (xr .- c)
+                #xc = c .- γ * (xr .- c)
+                for j in 1:n
+                    xc[j] = c[j] - γ * (xr[j] - c[j])
+                end
                 fc = f(xc)
                 if fc < fh
                     accept = (xc, fc)
@@ -130,7 +144,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             ord = sortperm(fvalues)
         else
             x, fvalue = accept
-            simplex[h] = x
+            simplex[h][:] = x[:]
             fvalues[h] = fvalue
             # insert new value into an ordered position
             for i in n+1:-1:2
