@@ -21,8 +21,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     δ = 1.0 - 1 / n
 
     # initialize simplex and function values
-    simplex = Vector{Float64}[]
-    push!(simplex, x₀)
+    simplex = Vector{Float64}[x₀]
     fvalues = Float64[f(x₀)]
     u = zeros(n)
     for i in 1:n
@@ -66,12 +65,12 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             c[j] /= n
         end
 
-        fh = fvalues[h]
         xh = simplex[h]
-        fs = fvalues[s]
+        fh = fvalues[h]
         # xs = simplex[s]
-        fl = fvalues[l]
+        fs = fvalues[s]
         xl = simplex[l]
+        fl = fvalues[l]
 
         # TODO: preallocate vectors for efficiency
 
@@ -125,6 +124,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         end
 
         #@show doshrink
+        # update simplex and function values
         if doshrink
             # TODO: use in-place sortperm (v0.4 has it!)
             ord = sortperm(fvalues)
