@@ -19,6 +19,8 @@ function centroid!(c, simplex, h)
     c
 end
 
+centroid(simplex, h) = centroid!(Array(Float64, length(simplex[1])), simplex, h)
+
 # References:
 # * Fuchang Gao and Lixing Han (2010), Springer US. "Implementing the Nelder-Mead simplex algorithm with adaptive parameters" (doi:10.1007/s10589-010-9329-3)
 # * Saša Singer and John Nelder (2009), Scholarpedia, 4(7):2928. "Nelder-Mead algorithm" (doi:10.4249/scholarpedia.2928)
@@ -69,6 +71,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     while !(iter >= iteration || (fvalconv && domconv))
         # DEBUG
         #@assert issorted(fvalues[ord])
+        #@assert norm(c .- centroid(simplex, ord[n+1]), Inf) < xtol * 1.0e-2
 
         # highest, second highest, and lowest indices, respectively
         h = ord[n+1]
@@ -167,8 +170,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             h = ord[n+1]
             xh = simplex[h]
             @inbounds for j in 1:n
-                c[j] += x[j] / n
-                c[j] -= xh[j] / n
+                c[j] += (x[j] - xh[j]) / n
             end
         end
 
@@ -185,13 +187,8 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             end
         end
         domconv = true
-        @inbounds for i in 2:n+1
-            # compute the infinity norm
-            norm = -Inf
-            for j in 1:n
-                norm = max(norm, abs(simplex[i][j] - xl[j]))
-            end
-            if norm > xtol
+        @inbounds for i in 2:n+1, j in 1:n
+            if abs(simplex[i][j] - xl[j]) > xtol
                 domconv = false
                 break
             end
