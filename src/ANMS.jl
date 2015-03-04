@@ -2,6 +2,23 @@ module ANMS
 
 export nelder_mead
 
+function centroid!(c, simplex, h)
+    n = length(c)
+    fill!(c, 0.0)
+    @inbounds for i in 1:n+1
+        if i != h
+            xi = simplex[i]
+            for j in 1:n
+                c[j] += xi[j]
+            end
+        end
+    end
+    for j in 1:n
+        c[j] /= n
+    end
+    c
+end
+
 # References:
 # * Fuchang Gao and Lixing Han (2010), Springer US. "Implementing the Nelder-Mead simplex algorithm with adaptive parameters" (doi:10.1007/s10589-010-9329-3)
 # * Saša Singer and John Nelder (2009), Scholarpedia, 4(7):2928. "Nelder-Mead algorithm" (doi:10.4249/scholarpedia.2928)
@@ -41,6 +58,9 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
 
     # centroid
     c = similar(x₀)
+    # centroid except the highest vertex
+    centroid!(c, simplex, ord[n+1])
+
     # transformed points
     xr = similar(x₀)
     xe = similar(x₀)
@@ -54,20 +74,6 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         h = ord[n+1]
         s = ord[n]
         l = ord[1]
-
-        # centroid except the highest vertex
-        fill!(c, 0.0)
-        @inbounds for i in 1:n+1
-            if i != h
-                xi = simplex[i]
-                for j in 1:n
-                    c[j] += xi[j]
-                end
-            end
-        end
-        for j in 1:n
-            c[j] /= n
-        end
 
         xh = simplex[h]
         fh = fvalues[h]
@@ -138,13 +144,13 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         end
 
         #@show doshrink
-        # update simplex and function values
+        # update simplex, function values and centroid
         if doshrink
             # TODO: use in-place sortperm (v0.4 has it!)
             ord = sortperm(fvalues)
+            centroid!(c, simplex, ord[n+1])
         else
             x, fvalue = accept
-            #simplex[h][:] = x[:]
             @inbounds for j in 1:n
                 simplex[h][j] = x[j]
             end
@@ -156,6 +162,13 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
                 else
                     break
                 end
+            end
+            # add the new vertex, and extract the highest vertex
+            h = ord[n+1]
+            xh = simplex[h]
+            @inbounds for j in 1:n
+                c[j] += x[j] / n
+                c[j] -= xh[j] / n
             end
         end
 
