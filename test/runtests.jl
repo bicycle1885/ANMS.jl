@@ -24,3 +24,7 @@ let
         @test abs(fmin - 0.0) < tol
     end
 end
+
+let
+    run(`julia example.jl` |> DevNull)
+end
