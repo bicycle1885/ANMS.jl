@@ -2,6 +2,23 @@ module ANMS
 
 export nelder_mead
 
+# centroid of a simplex
+function centroid!(c, simplex)
+    n = length(c)
+    fill!(c, 0.0)
+    @inbounds for i in 1:n+1
+        xi = simplex[i]
+        for j in 1:n
+            c[j] += xi[j]
+        end
+    end
+    for j in 1:n
+        c[j] /= n
+    end
+    c
+end
+
+# centroid except h-th vertex
 function centroid!(c, simplex, h)
     n = length(c)
     fill!(c, 0.0)
@@ -17,6 +34,13 @@ function centroid!(c, simplex, h)
         c[j] /= n
     end
     c
+end
+
+macro fcall(x)
+    quote
+        fcalls += 1
+        f($x)
+    end
 end
 
 centroid(simplex, h) = centroid!(Array(Float64, length(simplex[1])), simplex, h)
@@ -39,9 +63,12 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     γ = 0.75 - 1 / 2n
     δ = 1.0 - 1 / n
 
+    # number of function calls
+    fcalls = 0
+
     # initialize simplex and function values
     simplex = Vector{Float64}[x₀]
-    fvalues = Float64[f(x₀)]
+    fvalues = Float64[@fcall(x₀)]
     u = zeros(n)
     for i in 1:n
         τ = x₀[i] == 0.0 ? 0.00025 : 0.05
@@ -49,7 +76,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         x = x₀ .+ τ * u
         u[i] = 0.0
         push!(simplex, x)
-        push!(fvalues, f(x))
+        push!(fvalues, @fcall(x))
     end
     ord = sortperm(fvalues)
 
@@ -68,7 +95,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     xe = similar(x₀)
     xc = similar(x₀)
 
-    while !(iter >= iteration || (fvalconv && domconv))
+    while iter < iteration && !(fvalconv && domconv)
         # DEBUG
         #@assert issorted(fvalues[ord])
         #@assert norm(c .- centroid(simplex, ord[n+1]), Inf) < xtol * 1.0e-2
@@ -88,7 +115,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
         @inbounds for j in 1:n
             xr[j] = c[j] + α * (c[j] - xh[j])
         end
-        fr = f(xr)
+        fr = @fcall xr
         doshrink = false
 
         if fr < fl # <= fs
@@ -96,7 +123,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             @inbounds for j in 1:n
                 xe[j] = c[j] + β * (xr[j] - c[j])
             end
-            fe = f(xe)
+            fe = @fcall xe
             if fe < fr
                 accept = (xe, fe)
             else
@@ -111,7 +138,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
                 @inbounds for j in 1:n
                     xc[j] = c[j] + γ * (xr[j] - c[j])
                 end
-                fc = f(xc)
+                fc = @fcall xc
                 if fc <= fr
                     accept = (xc, fc)
                 else
@@ -122,7 +149,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
                 @inbounds for j in 1:n
                     xc[j] = c[j] - γ * (xr[j] - c[j])
                 end
-                fc = f(xc)
+                fc = @fcall xc
                 if fc < fh
                     accept = (xc, fc)
                 else
@@ -136,7 +163,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
                     o = ord[i]
                     xi = xl .+ δ * (simplex[o] .- xl)
                     simplex[o] = xi
-                    fvalues[o] = f(xi)
+                    fvalues[o] = @fcall xi
                 end
             end
         end
@@ -193,8 +220,12 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     #@show iter domconv fvalconv
     #@show simplex fvalues
 
-    # return the minimizing vertex and the function value
-    # TODO: the value at the centroid of a simplex may be smaller
+    # return the minimizing vertex (or the centroid of the simplex) and the function value
+    centroid!(c, simplex)
+    fcent = @fcall c
+    if fcent < fvalues[ord[1]]
+        return c, fcent
+    end
     simplex[ord[1]], fvalues[ord[1]]
 end
 
