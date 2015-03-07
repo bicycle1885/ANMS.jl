@@ -50,7 +50,7 @@ centroid(simplex, h) = centroid!(Array(Float64, length(simplex[1])), simplex, h)
 # * Saša Singer and John Nelder (2009), Scholarpedia, 4(7):2928. "Nelder-Mead algorithm" (doi:10.4249/scholarpedia.2928)
 
 # Adaptive Nelder-Mead Simplex (ANMS) algorithm
-function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_000, ftol::Float64=1.0e-8, xtol::Float64=1.0e-8)
+function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_000, ftol::Float64=1.0e-8, xtol::Float64=1.0e-8)
     # diemnsion
     n = length(x₀)
     if n < 2
@@ -95,7 +95,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
     xe = similar(x₀)
     xc = similar(x₀)
 
-    while iter < iteration && !(fvalconv && domconv)
+    while iter < iterations && !(fvalconv && domconv)
         # DEBUG
         #@assert issorted(fvalues[ord])
         #@assert norm(c .- centroid(simplex, ord[n+1]), Inf) < xtol * 1.0e-2

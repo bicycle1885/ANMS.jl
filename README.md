@@ -11,7 +11,7 @@ This algorithm would be faster than the standard Nelder-Mead algorithm when opti
 `ANMS` exports a function:
 
 ```julia
-nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_000, ftol::Float64=1.0e-8, xtol::Float64=1.0e-8)
+nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_000, ftol::Float64=1.0e-8, xtol::Float64=1.0e-8)
 ```
 
 where
