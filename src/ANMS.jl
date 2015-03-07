@@ -80,13 +80,11 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
 
         xh = simplex[h]
         fh = fvalues[h]
-        # xs = simplex[s]
         fs = fvalues[s]
         xl = simplex[l]
         fl = fvalues[l]
 
         # reflect
-        #xr = c .+ α * (c .- xh)
         @inbounds for j in 1:n
             xr[j] = c[j] + α * (c[j] - xh[j])
         end
@@ -95,7 +93,6 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
 
         if fr < fl # <= fs
             # expand
-            #xe = c .+ β * (xr .- c)
             @inbounds for j in 1:n
                 xe[j] = c[j] + β * (xr[j] - c[j])
             end
@@ -111,7 +108,6 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             # contract
             if fr < fh
                 # outside
-                #xc = c .+ γ * (xr .- c)
                 @inbounds for j in 1:n
                     xc[j] = c[j] + γ * (xr[j] - c[j])
                 end
@@ -123,7 +119,6 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
                 end
             else
                 # inside
-                #xc = c .- γ * (xr .- c)
                 @inbounds for j in 1:n
                     xc[j] = c[j] - γ * (xr[j] - c[j])
                 end
@@ -146,7 +141,6 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iteration::Int=1_000_00
             end
         end
 
-        #@show doshrink
         # update simplex, function values and centroid
         if doshrink
             # TODO: use in-place sortperm (v0.4 has it!)
