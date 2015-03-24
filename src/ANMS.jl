@@ -47,18 +47,20 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
     γ = 0.75 - 1 / 2n
     δ = 1.0 - 1 / n
 
+    # NOTE: Use @fcall macro to evaluate a function values
+    #       so as to automatically increment a function call counter
     # number of function calls
     fcalls = 0
 
-    # initialize simplex and function values
+    # initialize a simplex and function values
     simplex = Vector{Float64}[x₀]
     fvalues = Float64[@fcall(x₀)]
-    u = zeros(n)
     for i in 1:n
+        x = similar(x₀)
         τ = x₀[i] == 0.0 ? 0.00025 : 0.05
-        u[i] = 1.0
-        x = x₀ .+ τ * u
-        u[i] = 0.0
+        @inbounds for j in 1:n
+            x[j] = x₀[j] + ifelse(j == i, τ, 0.0)
+        end
         push!(simplex, x)
         push!(fvalues, @fcall(x))
     end
@@ -69,10 +71,8 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
     domconv = false  # domain convergence
     fvalconv = false  # function-value convergence
 
-    # centroid
-    c = similar(x₀)
-    # centroid except the highest vertex
-    centroid!(c, simplex, ord[n+1])
+    # centroid cache
+    c = centroid(simplex, ord[n+1])
 
     # transformed points
     xr = similar(x₀)
@@ -80,8 +80,10 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
     xc = similar(x₀)
 
     while iter < iterations && !(fvalconv && domconv)
-        # DEBUG
+        # assertions for debug
+        # * function values (`fvalues`) should be sorted according to the `ord` indices
         #@assert issorted(fvalues[ord])
+        # * centroid cache (`c`) should be close enough to the centroid of the `simplex` (excluding its highest vertex)
         #@assert norm(c .- centroid(simplex, ord[n+1]), Inf) < xtol * 1.0e-2
 
         # highest, second highest, and lowest indices, respectively
@@ -141,6 +143,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
                 end
             end
 
+            # shrinkage almost never happen in practice
             if doshrink
                 # shrink
                 for i in 2:n+1
@@ -152,7 +155,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
             end
         end
 
-        # update simplex, function values and centroid
+        # update simplex, function values and centroid cache
         if doshrink
             # TODO: use in-place sortperm (v0.4 has it!)
             ord = sortperm(fvalues)
@@ -162,8 +165,9 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
             @inbounds for j in 1:n
                 simplex[h][j] = x[j]
             end
+
+            # insert the new function value into an ordered position
             fvalues[h] = fvalue
-            # insert new value into an ordered position
             @inbounds for i in n+1:-1:2
                 if fvalues[ord[i-1]] > fvalues[ord[i]]
                     ord[i-1], ord[i] = ord[i], ord[i-1]
@@ -171,7 +175,8 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
                     break
                 end
             end
-            # add the new vertex, and extract the highest vertex
+
+            # add the new vertex, and subtract the highest vertex
             h = ord[n+1]
             xh = simplex[h]
             @inbounds for j in 1:n
@@ -204,7 +209,7 @@ function nelder_mead(f::Function, x₀::Vector{Float64}; iterations::Int=1_000_0
     #@show iter domconv fvalconv
     #@show simplex fvalues
 
-    # return the minimizing vertex (or the centroid of the simplex) and the function value
+    # return the lowest vertex (or the centroid of the simplex) and the function value
     centroid!(c, simplex)
     fcent = @fcall c
     if fcent < fvalues[ord[1]]
