@@ -2,24 +2,8 @@ module ANMS
 
 export nelder_mead
 
-# centroid of a simplex
-function centroid!(c, simplex)
-    n = length(c)
-    fill!(c, 0.0)
-    @inbounds for i in 1:n+1
-        xi = simplex[i]
-        for j in 1:n
-            c[j] += xi[j]
-        end
-    end
-    for j in 1:n
-        c[j] /= n
-    end
-    c
-end
-
 # centroid except h-th vertex
-function centroid!(c, simplex, h)
+function centroid!(c, simplex, h=0)
     n = length(c)
     fill!(c, 0.0)
     @inbounds for i in 1:n+1
@@ -36,14 +20,14 @@ function centroid!(c, simplex, h)
     c
 end
 
+centroid(simplex, h) = centroid!(similar(simplex[1]), simplex, h)
+
 macro fcall(x)
     quote
         fcalls += 1
         f($x)
     end
 end
-
-centroid(simplex, h) = centroid!(Array(Float64, length(simplex[1])), simplex, h)
 
 # References:
 # * Fuchang Gao and Lixing Han (2010), Springer US. "Implementing the Nelder-Mead simplex algorithm with adaptive parameters" (doi:10.1007/s10589-010-9329-3)
